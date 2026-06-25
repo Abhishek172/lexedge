@@ -1,6 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import { createClerkClient, verifyToken } from '@clerk/backend';
 import prisma from '../db/prisma';
+
+const clerk = createClerkClient({
+  secretKey: process.env.CLERK_SECRET_KEY!,
+});
 
 export interface AuthRequest extends Request {
   user?: {
@@ -18,18 +22,28 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
       return res.status(401).json({ error: 'No token provided' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
-      clerkId: string;
-      email: string;
-      role: string;
-    };
+    const payload = await verifyToken(token, {
+      secretKey: process.env.CLERK_SECRET_KEY!,
+    });
 
-    const user = await prisma.user.findUnique({
-      where: { clerkId: decoded.clerkId },
+    if (!payload?.sub) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+
+    let user = await prisma.user.findUnique({
+      where: { clerkId: payload.sub },
     });
 
     if (!user) {
-      return res.status(401).json({ error: 'User not found' });
+      const clerkUser = await clerk.users.getUser(payload.sub);
+      user = await prisma.user.create({
+        data: {
+          clerkId: payload.sub,
+          email: clerkUser.emailAddresses[0]?.emailAddress || '',
+          firstName: clerkUser.firstName || '',
+          lastName: clerkUser.lastName || '',
+        },
+      });
     }
 
     req.user = {
@@ -41,6 +55,7 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
 
     next();
   } catch (error) {
+    console.error('Auth error:', error);
     return res.status(401).json({ error: 'Invalid token' });
   }
 };

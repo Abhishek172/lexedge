@@ -1,17 +1,22 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
 
 const isProtectedRoute = createRouteMatcher([
   '/portal(.*)',
   '/admin(.*)',
 ]);
 
-const isAdminRoute = createRouteMatcher([
-  '/admin(.*)',
-]);
-
 export default clerkMiddleware(async (auth, req) => {
   if (isProtectedRoute(req)) {
     await auth.protect();
+  }
+
+  // Redirect to portal after sign in
+  const { userId } = await auth();
+  const url = req.nextUrl;
+
+  if (userId && (url.pathname === '/sign-in' || url.pathname === '/sign-up')) {
+    return NextResponse.redirect(new URL('/portal', req.url));
   }
 });
 

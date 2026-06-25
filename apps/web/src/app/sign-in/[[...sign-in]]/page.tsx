@@ -19,7 +19,10 @@ export default function SignInPage() {
         <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.8rem', fontWeight: 900, color: 'var(--white)', letterSpacing: '-0.02em' }}>
           Lex<span style={{ color: 'var(--gold)' }}>Edge</span>
         </div>
-        <SignIn />
+        <SignIn
+          forceRedirectUrl="/portal"
+          fallbackRedirectUrl="/portal"
+        />
       </div>
     </div>
   );

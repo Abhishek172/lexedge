@@ -1,119 +1,55 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { useUser, useClerk } from "@clerk/nextjs";
-import PaymentButton from "../components/portal/PaymentButton";
+import { useState, useEffect } from 'react';
+import { useUser, useClerk, useAuth } from '@clerk/nextjs';
+import PaymentButton from '../components/portal/PaymentButton';
+import { apiRequest } from '../../lib/api';
 
-const matters = [
-  {
-    id: "M-001",
-    title: "Vendor Agreement Review",
-    service: "Contract Review",
-    status: "In Review",
-    statusColor: "#B45309",
-    statusBg: "#FEF3C7",
-    date: "18 Jun 2025",
-    due: "20 Jun 2025",
-    lawyer: "Principal Counsel",
-    docs: 2,
-    messages: 1,
-  },
-  {
-    id: "M-002",
-    title: "Mutual NDA — TechCorp Partnership",
-    service: "NDA Drafting",
-    status: "Draft Ready",
-    statusColor: "#1A6B3C",
-    statusBg: "#E8F5EE",
-    date: "14 Jun 2025",
-    due: "21 Jun 2025",
-    lawyer: "Principal Counsel",
-    docs: 3,
-    messages: 4,
-  },
-  {
-    id: "M-003",
-    title: "Employment Contract — Senior Engineer",
-    service: "Employment Legal",
-    status: "Final Delivered",
-    statusColor: "#1D4ED8",
-    statusBg: "#EFF6FF",
-    date: "02 Jun 2025",
-    due: "05 Jun 2025",
-    lawyer: "Principal Counsel",
-    docs: 1,
-    messages: 2,
-  },
-  {
-    id: "M-004",
-    title: "Founders Agreement",
-    service: "Startup Legal Pack",
-    status: "Received",
-    statusColor: "#5C5C5C",
-    statusBg: "#F4F4F6",
-    date: "20 Jun 2025",
-    due: "25 Jun 2025",
-    lawyer: "Assigned on payment",
-    docs: 0,
-    messages: 0,
-  },
-];
+type Tab = 'matters' | 'payments' | 'profile';
 
-const payments = [
-  {
-    id: "PAY-001",
-    matter: "Vendor Agreement Review",
-    amount: "₹3,999",
-    date: "18 Jun 2025",
-    status: "Paid",
-    method: "UPI",
-  },
-  {
-    id: "PAY-002",
-    matter: "Mutual NDA — TechCorp",
-    amount: "₹2,999",
-    date: "14 Jun 2025",
-    status: "Paid",
-    method: "Card",
-  },
-  {
-    id: "PAY-003",
-    matter: "Employment Contract",
-    amount: "₹3,499",
-    date: "02 Jun 2025",
-    status: "Paid",
-    method: "UPI",
-  },
-  {
-    id: "PAY-004",
-    matter: "Founders Agreement",
-    amount: "₹9,999",
-    date: "20 Jun 2025",
-    status: "Pending",
-    method: "—",
-  },
-];
-
-const statusSteps = [
-  "Received",
-  "In Review",
-  "Draft Ready",
-  "Revisions",
-  "Final Delivered",
-];
-
-type Tab = "matters" | "payments" | "profile";
+const statusSteps = ['RECEIVED', 'IN_REVIEW', 'DRAFT_READY', 'REVISIONS', 'FINAL_DELIVERED'];
+const statusLabels: Record<string, string> = {
+  RECEIVED: 'Received',
+  IN_REVIEW: 'In Review',
+  DRAFT_READY: 'Draft Ready',
+  REVISIONS: 'Revisions',
+  FINAL_DELIVERED: 'Final Delivered',
+  CLOSED: 'Closed',
+};
 
 export default function Portal() {
-  const [activeTab, setActiveTab] = useState<Tab>("matters");
   const { user } = useUser();
   const { signOut } = useClerk();
-  const [selectedMatter, setSelectedMatter] = useState<
-    (typeof matters)[0] | null
-  >(null);
+  const { getToken } = useAuth();
+
+  const [activeTab, setActiveTab] = useState<Tab>('matters');
+  const [selectedMatter, setSelectedMatter] = useState<any>(null);
+  const [matters, setMatters] = useState<any[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [hoveredMatter, setHoveredMatter] = useState<string | null>(null);
   const [hoveredTab, setHoveredTab] = useState<Tab | null>(null);
 
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      const token = await getToken();
+      const [mattersData, paymentsData] = await Promise.all([
+        apiRequest('/api/matters/my', {}, token || undefined),
+        apiRequest('/api/payments/my', {}, token || undefined),
+      ]);
+      setMatters(mattersData);
+      setPayments(paymentsData);
+    } catch (error) {
+      console.error('Failed to load data:', error);
+    } finally {
+      setLoading(false);
+    }
+
+  };
   return (
     <div
       style={{
@@ -384,6 +320,11 @@ export default function Portal() {
             minHeight: "calc(100vh - 60px)",
           }}
         >
+          {loading && (
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4rem', color: 'var(--ink-muted)', fontSize: '0.88rem' }}>
+    Loading your matters...
+  </div>
+)}
           {/* Matters tab */}
           {activeTab === "matters" && !selectedMatter && (
             <>
@@ -578,7 +519,7 @@ export default function Portal() {
                           whiteSpace: "nowrap",
                         }}
                       >
-                        {m.status}
+                        {statusLabels[m.status] || m.status}
                       </span>
                       <span
                         style={{
