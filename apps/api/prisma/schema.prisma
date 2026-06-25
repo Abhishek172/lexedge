@@ -1,0 +1,177 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  LAWYER
+  CLIENT
+}
+
+enum MatterStatus {
+  RECEIVED
+  IN_REVIEW
+  DRAFT_READY
+  REVISIONS
+  FINAL_DELIVERED
+  CLOSED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum Region {
+  INDIA
+  INTERNATIONAL
+}
+
+model User {
+  id            String    @id @default(cuid())
+  clerkId       String    @unique
+  email         String    @unique
+  firstName     String
+  lastName      String
+  phone         String?
+  company       String?
+  role          UserRole  @default(CLIENT)
+  region        Region    @default(INDIA)
+  referralCode  String    @unique @default(cuid())
+  referredBy    String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  matters       Matter[]  @relation("ClientMatters")
+  assignedMatters Matter[] @relation("LawyerMatters")
+  payments      Payment[]
+  documents     Document[]
+  messages      Message[]
+  referrals     Referral[] @relation("ReferrerReferrals")
+}
+
+model Matter {
+  id            String        @id @default(cuid())
+  title         String
+  service       String
+  description   String?
+  status        MatterStatus  @default(RECEIVED)
+  fee           Int
+  region        Region        @default(INDIA)
+  slaHours      Int           @default(48)
+  dueDate       DateTime?
+  internalNotes String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  clientId      String
+  client        User          @relation("ClientMatters", fields: [clientId], references: [id])
+  lawyerId      String?
+  lawyer        User?         @relation("LawyerMatters", fields: [lawyerId], references: [id])
+
+  payments      Payment[]
+  documents     Document[]
+  messages      Message[]
+  statusHistory StatusHistory[]
+}
+
+model StatusHistory {
+  id        String       @id @default(cuid())
+  matterId  String
+  matter    Matter       @relation(fields: [matterId], references: [id])
+  status    MatterStatus
+  note      String?
+  createdAt DateTime     @default(now())
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  razorpayOrderId String?       @unique
+  razorpayPaymentId String?     @unique
+  amount          Int
+  currency        String        @default("INR")
+  status          PaymentStatus @default(PENDING)
+  description     String?
+  gstAmount       Int?
+  invoiceUrl      String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  matterId        String
+  matter          Matter        @relation(fields: [matterId], references: [id])
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+}
+
+model Document {
+  id          String   @id @default(cuid())
+  name        String
+  s3Key       String
+  s3Bucket    String
+  mimeType    String
+  sizeBytes   Int
+  isClientDoc Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  matterId    String
+  matter      Matter   @relation(fields: [matterId], references: [id])
+  uploadedBy  String
+  uploader    User     @relation(fields: [uploadedBy], references: [id])
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  content   String
+  isInternal Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  matterId  String
+  matter    Matter   @relation(fields: [matterId], references: [id])
+  senderId  String
+  sender    User     @relation(fields: [senderId], references: [id])
+}
+
+model Booking {
+  id            String   @id @default(cuid())
+  firstName     String
+  lastName      String
+  email         String
+  phone         String
+  company       String?
+  service       String?
+  consultType   String
+  message       String?
+  region        Region   @default(INDIA)
+  status        String   @default("pending")
+  createdAt     DateTime @default(now())
+}
+
+model QuizLead {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  score           Int
+  percentage      Int
+  answers         Json
+  recommendations String[]
+  followUpDay     Int      @default(0)
+  converted       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Referral {
+  id          String   @id @default(cuid())
+  referrerId  String
+  referrer    User     @relation("ReferrerReferrals", fields: [referrerId], references: [id])
+  referredEmail String
+  creditAmount Int     @default(500)
+  paid        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
