@@ -36,6 +36,7 @@ export default function Admin() {
   const [hoveredClient, setHoveredClient] = useState<string | null>(null);
   const [hoveredLead, setHoveredLead] = useState<string | null>(null);
   const [hoveredTab, setHoveredTab] = useState<AdminTab | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<string>("LAWYER");
 
   useEffect(() => {
     loadData();
@@ -44,11 +45,13 @@ export default function Admin() {
   const loadData = async () => {
     try {
       const token = await getToken();
-      const [mattersData, clientsData, leadsData] = await Promise.all([
+      const [meData, mattersData, clientsData, leadsData] = await Promise.all([
+        apiRequest("/api/users/me", {}, token || undefined),
         apiRequest("/api/matters", {}, token || undefined),
         apiRequest("/api/users", {}, token || undefined),
         apiRequest("/api/leads", {}, token || undefined),
       ]);
+      setCurrentUserRole(meData.role);
       setMatters(mattersData);
       setClients(clientsData);
       setQuizLeads(leadsData);
@@ -242,7 +245,17 @@ export default function Admin() {
                 icon: "📊",
                 count: quizLeads.length,
               },
-              { id: "revenue", label: "Revenue", icon: "💰", count: null },
+              //{ id: "revenue", label: "Revenue", icon: "💰", count: null },
+              ...(currentUserRole === "ADMIN"
+                ? [
+                    {
+                      id: "revenue" as AdminTab,
+                      label: "Revenue",
+                      icon: "💰",
+                      count: null,
+                    },
+                  ]
+                : []),
             ] as {
               id: AdminTab;
               label: string;
@@ -472,18 +485,44 @@ export default function Admin() {
                     sub: "Active now",
                     color: "#B45309",
                   },
-                  {
-                    label: "Revenue Collected",
-                    value: `₹${totalRevenue.toLocaleString("en-IN")}`,
-                    sub: "This month",
-                    color: "var(--green)",
-                  },
-                  {
-                    label: "Pending Payment",
-                    value: `₹${pendingRevenue.toLocaleString("en-IN")}`,
-                    sub: "Awaiting",
-                    color: "var(--crimson)",
-                  },
+                  ...(currentUserRole === "ADMIN"
+                    ? [
+                        {
+                          label: "Revenue Collected",
+                          value: `₹${totalRevenue.toLocaleString("en-IN")}`,
+                          sub: "This month",
+                          color: "var(--green)",
+                        },
+                        {
+                          label: "Pending Payment",
+                          value: `₹${pendingRevenue.toLocaleString("en-IN")}`,
+                          sub: "Awaiting",
+                          color: "var(--crimson)",
+                        },
+                      ]
+                    : [
+                        {
+                          label: "Completed",
+                          value: matters
+                            .filter((m) => m.status === "FINAL_DELIVERED")
+                            .length.toString(),
+                          sub: "This month",
+                          color: "var(--green)",
+                        },
+                        {
+                          label: "Due Today",
+                          value: matters
+                            .filter(
+                              (m) =>
+                                m.dueDate &&
+                                new Date(m.dueDate).toDateString() ===
+                                  new Date().toDateString(),
+                            )
+                            .length.toString(),
+                          sub: "Needs attention",
+                          color: "var(--crimson)",
+                        },
+                      ]),
                 ].map((s) => (
                   <div
                     key={s.label}
