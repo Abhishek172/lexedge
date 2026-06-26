@@ -1203,6 +1203,38 @@ export default function Admin() {
                     All Transactions
                   </div>
                   <button
+                    onClick={() => {
+                      const headers = [
+                        "ID",
+                        "Matter",
+                        "Client",
+                        "Company",
+                        "Fee",
+                        "Status",
+                        "Paid",
+                      ];
+                      const rows = matters.map((m: any) => [
+                        m.id,
+                        m.title,
+                        `${m.client?.firstName} ${m.client?.lastName}`,
+                        m.client?.company || "",
+                        m.fee,
+                        m.status,
+                        m.payments?.some((p: any) => p.status === "PAID")
+                          ? "Yes"
+                          : "No",
+                      ]);
+                      const csv = [headers, ...rows]
+                        .map((r) => r.join(","))
+                        .join("\n");
+                      const blob = new Blob([csv], { type: "text/csv" });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `lexedge-revenue-${new Date().toISOString().split("T")[0]}.csv`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
                     style={{
                       background: "none",
                       border: "1px solid var(--border-strong)",
@@ -1213,6 +1245,15 @@ export default function Admin() {
                       fontWeight: 600,
                       color: "var(--ink-muted)",
                       cursor: "pointer",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = "var(--ink)";
+                      e.currentTarget.style.color = "var(--ink)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor =
+                        "var(--border-strong)";
+                      e.currentTarget.style.color = "var(--ink-muted)";
                     }}
                   >
                     Export CSV
@@ -1250,7 +1291,8 @@ export default function Admin() {
                     <div
                       style={{ fontSize: "0.75rem", color: "var(--ink-muted)" }}
                     >
-                      {m.client} · {m.company}
+                      {m.client?.firstName} {m.client?.lastName} ·{" "}
+                      {m.client?.company || "Individual"}
                     </div>
                     <div
                       style={{

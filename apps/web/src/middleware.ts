@@ -11,7 +11,7 @@ export default clerkMiddleware(async (auth, req) => {
     await auth.protect();
   }
 
-  const { userId, sessionClaims } = await auth();
+  const { userId } = await auth();
   const url = req.nextUrl;
 
   if (userId && (url.pathname === '/sign-in' || url.pathname === '/sign-up')) {
