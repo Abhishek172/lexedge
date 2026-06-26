@@ -388,6 +388,7 @@ export default function Admin() {
               All Clients
             </button>
             <button
+              onClick={() => (window.location.href = "/admin/matters/new")}
               style={{
                 width: "100%",
                 padding: "0.65rem",
