@@ -1,254 +1,63 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useUser, useClerk, useAuth } from '@clerk/nextjs';
-import { apiRequest } from '../../lib/api';
+import { useState, useEffect } from "react";
+import { useUser, useClerk, useAuth } from "@clerk/nextjs";
+import { apiRequest } from "../../lib/api";
 
-type AdminTab = 'pipeline' | 'clients' | 'leads' | 'revenue';
+type AdminTab = "pipeline" | "clients" | "leads" | "revenue";
 
-const statusColumns = ['RECEIVED', 'IN_REVIEW', 'DRAFT_READY', 'REVISIONS', 'FINAL_DELIVERED'];
+const statusColumns = [
+  "RECEIVED",
+  "IN_REVIEW",
+  "DRAFT_READY",
+  "REVISIONS",
+  "FINAL_DELIVERED",
+];
 
 const statusLabels: Record<string, string> = {
-  RECEIVED: 'Received',
-  IN_REVIEW: 'In Review',
-  DRAFT_READY: 'Draft Ready',
-  REVISIONS: 'Revisions',
-  FINAL_DELIVERED: 'Final Delivered',
-  CLOSED: 'Closed',
+  RECEIVED: "Received",
+  IN_REVIEW: "In Review",
+  DRAFT_READY: "Draft Ready",
+  REVISIONS: "Revisions",
+  FINAL_DELIVERED: "Final Delivered",
+  CLOSED: "Closed",
 };
-
-
-const { getToken } = useAuth();
-const [matters, setMatters] = useState<any[]>([]);
-const [clients, setClients] = useState<any[]>([]);
-const [quizLeads, setQuizLeads] = useState<any[]>([]);
-const [loading, setLoading] = useState(true);
-
-useEffect(() => {
-  loadData();
-}, []);
-
-const loadData = async () => {
-  try {
-    const token = await getToken();
-    const [mattersData, clientsData, leadsData] = await Promise.all([
-      apiRequest("/api/matters", {}, token || undefined),
-      apiRequest("/api/users", {}, token || undefined),
-      apiRequest("/api/leads", {}, token || undefined),
-    ]);
-    setMatters(mattersData);
-    setClients(clientsData);
-    setQuizLeads(leadsData);
-  } catch (error) {
-    console.error("Failed to load admin data:", error);
-  } finally {
-    setLoading(false);
-  }
-};
-
-// const matters = [
-//   {
-//     id: "M-001",
-//     title: "Vendor Agreement Review",
-//     client: "Rahul Sharma",
-//     company: "Acme Technologies",
-//     service: "Contract Review",
-//     status: "In Review",
-//     statusColor: "#B45309",
-//     statusBg: "#FEF3C7",
-//     due: "20 Jun 2025",
-//     fee: "₹3,999",
-//     paid: true,
-//   },
-//   {
-//     id: "M-002",
-//     title: "Mutual NDA — TechCorp",
-//     client: "Rahul Sharma",
-//     company: "Acme Technologies",
-//     service: "NDA Drafting",
-//     status: "Draft Ready",
-//     statusColor: "#1A6B3C",
-//     statusBg: "#E8F5EE",
-//     due: "21 Jun 2025",
-//     fee: "₹2,999",
-//     paid: true,
-//   },
-//   {
-//     id: "M-003",
-//     title: "Employment Contract",
-//     client: "Priya Shah",
-//     company: "D2C Brand Co.",
-//     service: "Employment Legal",
-//     status: "Final Delivered",
-//     statusColor: "#1D4ED8",
-//     statusBg: "#EFF6FF",
-//     due: "05 Jun 2025",
-//     fee: "₹3,499",
-//     paid: true,
-//   },
-//   {
-//     id: "M-004",
-//     title: "Founders Agreement",
-//     client: "Aarav Patel",
-//     company: "EdTech Startup",
-//     service: "Startup Legal Pack",
-//     status: "Received",
-//     statusColor: "#5C5C5C",
-//     statusBg: "#F4F4F6",
-//     due: "25 Jun 2025",
-//     fee: "₹9,999",
-//     paid: false,
-//   },
-//   {
-//     id: "M-005",
-//     title: "Brand Endorsement Deal",
-//     client: "Meera Krishnan",
-//     company: "Talent Agency",
-//     service: "Brand & Endorsement",
-//     status: "In Review",
-//     statusColor: "#B45309",
-//     statusBg: "#FEF3C7",
-//     due: "22 Jun 2025",
-//     fee: "₹4,999",
-//     paid: true,
-//   },
-//   {
-//     id: "M-006",
-//     title: "MSME Vendor Contracts",
-//     client: "Sunita Rao",
-//     company: "Manufacturing Co.",
-//     service: "MSME & Compliance",
-//     status: "Revisions",
-//     statusColor: "#6D28D9",
-//     statusBg: "#EDE9FE",
-//     due: "23 Jun 2025",
-//     fee: "₹3,499",
-//     paid: true,
-//   },
-// ];
-
-// const clients = [
-//   {
-//     id: "C-001",
-//     name: "Rahul Sharma",
-//     company: "Acme Technologies Pvt. Ltd.",
-//     email: "rahul@acme.com",
-//     phone: "+91 98765 43210",
-//     matters: 2,
-//     spent: "₹6,998",
-//     since: "Jun 2025",
-//     region: "India",
-//   },
-//   {
-//     id: "C-002",
-//     name: "Priya Shah",
-//     company: "D2C Brand Co.",
-//     email: "priya@d2cbrand.com",
-//     phone: "+91 87654 32109",
-//     matters: 1,
-//     spent: "₹3,499",
-//     since: "Jun 2025",
-//     region: "India",
-//   },
-//   {
-//     id: "C-003",
-//     name: "Aarav Patel",
-//     company: "EdTech Startup",
-//     email: "aarav@edtech.io",
-//     phone: "+91 76543 21098",
-//     matters: 1,
-//     spent: "₹9,999",
-//     since: "Jun 2025",
-//     region: "India",
-//   },
-//   {
-//     id: "C-004",
-//     name: "Meera Krishnan",
-//     company: "Talent Agency",
-//     email: "meera@talent.co",
-//     phone: "+91 65432 10987",
-//     matters: 1,
-//     spent: "₹4,999",
-//     since: "Jun 2025",
-//     region: "India",
-//   },
-//   {
-//     id: "C-005",
-//     name: "Sunita Rao",
-//     company: "Manufacturing Co.",
-//     email: "sunita@mfg.in",
-//     phone: "+91 54321 09876",
-//     matters: 1,
-//     spent: "₹3,499",
-//     since: "Jun 2025",
-//     region: "India",
-//   },
-// ];
-
-// const quizLeads = [
-//   {
-//     id: "L-001",
-//     email: "founder@startup.io",
-//     score: 42,
-//     tier: "High Risk",
-//     date: "20 Jun 2025",
-//     followUp: "Day 1 sent",
-//     recommended: "Startup Legal Pack",
-//   },
-//   {
-//     id: "L-002",
-//     email: "cto@saasco.com",
-//     score: 68,
-//     tier: "Moderate Risk",
-//     date: "19 Jun 2025",
-//     followUp: "Day 3 sent",
-//     recommended: "Tech & SaaS Contracts",
-//   },
-//   {
-//     id: "L-003",
-//     email: "md@msme.in",
-//     score: 35,
-//     tier: "High Risk",
-//     date: "18 Jun 2025",
-//     followUp: "Day 7 sent",
-//     recommended: "MSME & Compliance",
-//   },
-//   {
-//     id: "L-004",
-//     email: "founder@d2c.co",
-//     score: 88,
-//     tier: "Legally Strong",
-//     date: "17 Jun 2025",
-//     followUp: "Completed",
-//     recommended: "Annual Audit",
-//   },
-//   {
-//     id: "L-005",
-//     email: "ceo@enterprise.com",
-//     score: 55,
-//     tier: "Moderate Risk",
-//     date: "16 Jun 2025",
-//     followUp: "Day 1 sent",
-//     recommended: "Contract Review",
-//   },
-// ];
-
-// const statusColumns = [
-//   "Received",
-//   "In Review",
-//   "Draft Ready",
-//   "Revisions",
-//   "Final Delivered",
-// ];
 
 export default function Admin() {
-  const [activeTab, setActiveTab] = useState<AdminTab>("pipeline");
   const { user } = useUser();
   const { signOut } = useClerk();
+  const { getToken } = useAuth();
+  const [activeTab, setActiveTab] = useState<AdminTab>("pipeline");
+  const [matters, setMatters] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
+  const [quizLeads, setQuizLeads] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [hoveredMatter, setHoveredMatter] = useState<string | null>(null);
   const [hoveredClient, setHoveredClient] = useState<string | null>(null);
   const [hoveredLead, setHoveredLead] = useState<string | null>(null);
   const [hoveredTab, setHoveredTab] = useState<AdminTab | null>(null);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      const token = await getToken();
+      const [mattersData, clientsData, leadsData] = await Promise.all([
+        apiRequest("/api/matters", {}, token || undefined),
+        apiRequest("/api/users", {}, token || undefined),
+        apiRequest("/api/leads", {}, token || undefined),
+      ]);
+      setMatters(mattersData);
+      setClients(clientsData);
+      setQuizLeads(leadsData);
+    } catch (error) {
+      console.error("Failed to load admin data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const totalRevenue = matters
     .filter((m) => m.paid)
@@ -519,7 +328,7 @@ export default function Admin() {
               gap: "0.5rem",
             }}
           >
-            <button
+            {/* <button
               onClick={() => (window.location.href = "/portal")}
               style={{
                 width: "100%",
@@ -541,6 +350,29 @@ export default function Admin() {
               }}
             >
               View Client Portal
+            </button> */}
+            <button
+              onClick={() => (window.location.href = "/admin/clients")}
+              style={{
+                width: "100%",
+                padding: "0.65rem",
+                background: "transparent",
+                color: "var(--ink-muted)",
+                border: "1px solid var(--border-strong)",
+                borderRadius: "4px",
+                fontFamily: "var(--font-body)",
+                fontSize: "0.78rem",
+                fontWeight: 500,
+                cursor: "pointer",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "var(--paper)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+              }}
+            >
+              All Clients
             </button>
             <button
               style={{

@@ -1,20 +1,26 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useUser, useClerk, useAuth } from '@clerk/nextjs';
-import PaymentButton from '../components/portal/PaymentButton';
-import { apiRequest } from '../../lib/api';
+import { useState, useEffect } from "react";
+import { useUser, useClerk, useAuth } from "@clerk/nextjs";
+import PaymentButton from "../components/portal/PaymentButton";
+import { apiRequest } from "../../lib/api";
 
-type Tab = 'matters' | 'payments' | 'profile';
+type Tab = "matters" | "payments" | "profile";
 
-const statusSteps = ['RECEIVED', 'IN_REVIEW', 'DRAFT_READY', 'REVISIONS', 'FINAL_DELIVERED'];
+const statusSteps = [
+  "RECEIVED",
+  "IN_REVIEW",
+  "DRAFT_READY",
+  "REVISIONS",
+  "FINAL_DELIVERED",
+];
 const statusLabels: Record<string, string> = {
-  RECEIVED: 'Received',
-  IN_REVIEW: 'In Review',
-  DRAFT_READY: 'Draft Ready',
-  REVISIONS: 'Revisions',
-  FINAL_DELIVERED: 'Final Delivered',
-  CLOSED: 'Closed',
+  RECEIVED: "Received",
+  IN_REVIEW: "In Review",
+  DRAFT_READY: "Draft Ready",
+  REVISIONS: "Revisions",
+  FINAL_DELIVERED: "Final Delivered",
+  CLOSED: "Closed",
 };
 
 export default function Portal() {
@@ -22,7 +28,7 @@ export default function Portal() {
   const { signOut } = useClerk();
   const { getToken } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<Tab>('matters');
+  const [activeTab, setActiveTab] = useState<Tab>("matters");
   const [selectedMatter, setSelectedMatter] = useState<any>(null);
   const [matters, setMatters] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
@@ -37,18 +43,29 @@ export default function Portal() {
   const loadData = async () => {
     try {
       const token = await getToken();
+
+      // Check user role — redirect admins to admin dashboard
+      const userData = await apiRequest(
+        "/api/users/me",
+        {},
+        token || undefined,
+      );
+      if (userData.role === "ADMIN" || userData.role === "LAWYER") {
+        window.location.href = "/admin";
+        return;
+      }
+
       const [mattersData, paymentsData] = await Promise.all([
-        apiRequest('/api/matters/my', {}, token || undefined),
-        apiRequest('/api/payments/my', {}, token || undefined),
+        apiRequest("/api/matters/my", {}, token || undefined),
+        apiRequest("/api/payments/my", {}, token || undefined),
       ]);
       setMatters(mattersData);
       setPayments(paymentsData);
     } catch (error) {
-      console.error('Failed to load data:', error);
+      console.error("Failed to load data:", error);
     } finally {
       setLoading(false);
     }
-
   };
   return (
     <div
@@ -321,10 +338,19 @@ export default function Portal() {
           }}
         >
           {loading && (
-  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4rem', color: 'var(--ink-muted)', fontSize: '0.88rem' }}>
-    Loading your matters...
-  </div>
-)}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "4rem",
+                color: "var(--ink-muted)",
+                fontSize: "0.88rem",
+              }}
+            >
+              Loading your matters...
+            </div>
+          )}
           {/* Matters tab */}
           {activeTab === "matters" && !selectedMatter && (
             <>
