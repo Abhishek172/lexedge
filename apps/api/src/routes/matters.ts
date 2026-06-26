@@ -15,7 +15,8 @@ const createMatterSchema = z.object({
   slaHours: z.number().default(48),
   dueDate: z.string().optional(),
   lawyerId: z.string().optional(),
-  region: z.enum(["INDIA", "INTERNATIONAL"]).default("INDIA"),
+  region: z.enum(['INDIA', 'INTERNATIONAL']).default('INDIA'),
+  internalNotes: z.string().optional(),
 });
 
 const updateStatusSchema = z.object({

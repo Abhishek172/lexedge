@@ -65,13 +65,16 @@ export default function Admin() {
   const totalRevenue = matters
     .filter((m) => m.paid)
     .reduce(
-      (acc, m) => acc + parseInt(m.fee.replace("₹", "").replace(",", "")),
+      (acc, m) =>
+        acc + (typeof m.fee === "number" ? m.fee : parseInt(m.fee) || 0),
       0,
     );
+
   const pendingRevenue = matters
     .filter((m) => !m.paid)
     .reduce(
-      (acc, m) => acc + parseInt(m.fee.replace("₹", "").replace(",", "")),
+      (acc, m) =>
+        acc + (typeof m.fee === "number" ? m.fee : parseInt(m.fee) || 0),
       0,
     );
 
@@ -666,7 +669,7 @@ export default function Admin() {
                                 marginBottom: "0.5rem",
                               }}
                             >
-                              {m.client}
+                              {m.client?.firstName} {m.client?.lastName}
                             </div>
                             <div
                               style={{
@@ -833,7 +836,7 @@ export default function Admin() {
                           color: "var(--ink)",
                         }}
                       >
-                        {c.name}
+                        {c.firstName} {c.lastName}
                       </div>
                       <div
                         style={{
@@ -872,7 +875,7 @@ export default function Admin() {
                         color: "var(--ink)",
                       }}
                     >
-                      {c.matters}
+                      {c._count?.matters || 0}
                     </div>
                     <div
                       style={{
@@ -882,7 +885,8 @@ export default function Admin() {
                         color: "var(--green)",
                       }}
                     >
-                      {c.spent}
+                      {/* ₹{(c._count?.matters * 3000).toLocaleString('en-IN')} */}
+                      {c._count?.matters || 0} matters
                     </div>
                     <div
                       style={{
