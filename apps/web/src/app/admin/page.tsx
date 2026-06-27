@@ -37,6 +37,47 @@ export default function Admin() {
   const [hoveredLead, setHoveredLead] = useState<string | null>(null);
   const [hoveredTab, setHoveredTab] = useState<AdminTab | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<string>("LAWYER");
+  const [revenueFilter, setRevenueFilter] = useState<
+    "month" | "quarter" | "all"
+  >("month");
+  const [selectedMonth, setSelectedMonth] = useState(
+    new Date().toISOString().slice(0, 7),
+  );
+
+  const filteredMatters =
+    revenueFilter === "all"
+      ? matters
+      : revenueFilter === "month"
+        ? matters.filter((m) => {
+            const d = new Date(m.createdAt);
+            return d.toISOString().slice(0, 7) === selectedMonth;
+          })
+        : matters.filter((m) => {
+            const d = new Date(m.createdAt);
+            const now = new Date();
+            const quarterStart = new Date(
+              now.getFullYear(),
+              Math.floor(now.getMonth() / 3) * 3,
+              1,
+            );
+            return d >= quarterStart;
+          });
+
+  const filteredRevenue = filteredMatters
+    .filter((m: any) => m.payments?.some((p: any) => p.status === "PAID"))
+    .reduce(
+      (acc: number, m: any) =>
+        acc + (typeof m.fee === "number" ? m.fee : parseInt(m.fee) || 0),
+      0,
+    );
+
+  const filteredPending = filteredMatters
+    .filter((m: any) => !m.payments?.some((p: any) => p.status === "PAID"))
+    .reduce(
+      (acc: number, m: any) =>
+        acc + (typeof m.fee === "number" ? m.fee : parseInt(m.fee) || 0),
+      0,
+    );
 
   useEffect(() => {
     loadData();
@@ -391,6 +432,29 @@ export default function Admin() {
               All Clients
             </button>
             <button
+              onClick={() => (window.location.href = "/admin/bookings")}
+              style={{
+                width: "100%",
+                padding: "0.65rem",
+                background: "transparent",
+                color: "var(--ink-muted)",
+                border: "1px solid var(--border-strong)",
+                borderRadius: "4px",
+                fontFamily: "var(--font-body)",
+                fontSize: "0.78rem",
+                fontWeight: 500,
+                cursor: "pointer",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "var(--paper)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+              }}
+            >
+              📅 View Bookings
+            </button>
+            <button
               onClick={() => (window.location.href = "/admin/matters/new")}
               style={{
                 width: "100%",
@@ -625,6 +689,9 @@ export default function Admin() {
                             key={m.id}
                             onMouseEnter={() => setHoveredMatter(m.id)}
                             onMouseLeave={() => setHoveredMatter(null)}
+                            onClick={() =>
+                              (window.location.href = `/admin/matters/${m.id}`)
+                            }
                             style={{
                               background: "var(--white)",
                               border:
@@ -1043,19 +1110,23 @@ export default function Admin() {
                     <div
                       style={{ fontSize: "0.75rem", color: "var(--ink-muted)" }}
                     >
-                      {l.date}
+                      {new Date(l.createdAt).toLocaleDateString("en-IN")}
                     </div>
                     <div
                       style={{
                         fontSize: "0.72rem",
                         color:
-                          l.followUp === "Completed"
+                          l.followUpDay >= 14
                             ? "var(--green)"
                             : "var(--ink-muted)",
-                        fontWeight: l.followUp === "Completed" ? 600 : 400,
+                        fontWeight: l.followUpDay >= 14 ? 600 : 400,
                       }}
                     >
-                      {l.followUp}
+                      {l.followUpDay === 0
+                        ? "Day 1 sent"
+                        : l.followUpDay >= 14
+                          ? "Completed"
+                          : `Day ${l.followUpDay} sent`}
                     </div>
                     <div>
                       <button
@@ -1082,7 +1153,7 @@ export default function Admin() {
           {/* Revenue tab */}
           {activeTab === "revenue" && (
             <>
-              <div style={{ marginBottom: "2rem" }}>
+              {/* <div style={{ marginBottom: "2rem" }}>
                 <h1
                   style={{
                     fontFamily: "var(--font-display)",
@@ -1103,6 +1174,88 @@ export default function Admin() {
                 >
                   June 2025
                 </p>
+              </div> */}
+
+              <div
+                style={{
+                  marginBottom: "2rem",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: "1rem",
+                }}
+              >
+                <div>
+                  <h1
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      fontSize: "1.6rem",
+                      fontWeight: 900,
+                      color: "var(--ink)",
+                      letterSpacing: "-0.02em",
+                    }}
+                  >
+                    Revenue
+                  </h1>
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "0.5rem",
+                    alignItems: "center",
+                  }}
+                >
+                  {(["month", "quarter", "all"] as const).map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setRevenueFilter(f)}
+                      style={{
+                        padding: "0.45rem 1rem",
+                        borderRadius: "4px",
+                        border:
+                          revenueFilter === f
+                            ? "1px solid var(--gold)"
+                            : "1px solid var(--border-strong)",
+                        background:
+                          revenueFilter === f
+                            ? "var(--gold-pale)"
+                            : "transparent",
+                        fontFamily: "var(--font-body)",
+                        fontSize: "0.78rem",
+                        fontWeight: revenueFilter === f ? 700 : 400,
+                        color:
+                          revenueFilter === f
+                            ? "var(--ink)"
+                            : "var(--ink-muted)",
+                        cursor: "pointer",
+                        transition: "all 0.15s",
+                        textTransform: "capitalize",
+                      }}
+                    >
+                      {f === "all"
+                        ? "All Time"
+                        : f === "quarter"
+                          ? "This Quarter"
+                          : "This Month"}
+                    </button>
+                  ))}
+                  {revenueFilter === "month" && (
+                    <input
+                      type="month"
+                      value={selectedMonth}
+                      onChange={(e) => setSelectedMonth(e.target.value)}
+                      style={{
+                        padding: "0.4rem 0.75rem",
+                        border: "1px solid var(--border-strong)",
+                        borderRadius: "4px",
+                        fontFamily: "var(--font-body)",
+                        fontSize: "0.78rem",
+                        outline: "none",
+                      }}
+                    />
+                  )}
+                </div>
               </div>
 
               <div
@@ -1116,21 +1269,21 @@ export default function Admin() {
                 {[
                   {
                     label: "Collected",
-                    value: `₹${totalRevenue.toLocaleString("en-IN")}`,
+                    value: `₹${filteredRevenue.toLocaleString("en-IN")}`,
                     sub: "This month",
                     color: "var(--green)",
                     bg: "var(--green-pale)",
                   },
                   {
                     label: "Pending",
-                    value: `₹${pendingRevenue.toLocaleString("en-IN")}`,
+                    value: `₹${filteredPending.toLocaleString("en-IN")}`,
                     sub: "Awaiting payment",
                     color: "var(--crimson)",
                     bg: "#FEE2E2",
                   },
                   {
                     label: "Total Pipeline",
-                    value: `₹${(totalRevenue + pendingRevenue).toLocaleString("en-IN")}`,
+                    value: `₹${(filteredRevenue + filteredPending).toLocaleString("en-IN")}`,
                     sub: "Collected + pending",
                     color: "var(--ink)",
                     bg: "var(--paper-warm)",
@@ -1213,7 +1366,7 @@ export default function Admin() {
                         "Status",
                         "Paid",
                       ];
-                      const rows = matters.map((m: any) => [
+                      const rows = filteredMatters.map((m: any) => [
                         m.id,
                         m.title,
                         `${m.client?.firstName} ${m.client?.lastName}`,
@@ -1259,7 +1412,7 @@ export default function Admin() {
                     Export CSV
                   </button>
                 </div>
-                {matters.map((m) => (
+                {filteredMatters.map((m) => (
                   <div
                     key={m.id}
                     style={{

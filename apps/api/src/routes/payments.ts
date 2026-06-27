@@ -1,9 +1,14 @@
-import { Router, Request, Response } from 'express';
-import Razorpay from 'razorpay';
-import crypto from 'crypto';
-import prisma from '../db/prisma';
-import { requireAuth, AuthRequest } from '../middleware/auth';
-import { sendPaymentConfirmation } from '../services/email';
+import { Router, Request, Response } from "express";
+import Razorpay from "razorpay";
+import crypto from "crypto";
+import prisma from "../db/prisma";
+import {
+  requireAuth,
+  AuthRequest,
+  requireAdmin,
+  requireLawyer,
+} from "../middleware/auth";
+import { sendPaymentConfirmation } from "../services/email";
 
 const router = Router();
 
@@ -13,80 +18,84 @@ const razorpay = new Razorpay({
 });
 
 // Create Razorpay order
-router.post('/create-order', requireAuth, async (req: AuthRequest, res: Response) => {
-  try {
-    const { matterId, amount, currency = 'INR' } = req.body;
+router.post(
+  "/create-order",
+  requireAuth,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { matterId, amount, currency = "INR" } = req.body;
 
-    const matter = await prisma.matter.findUnique({
-      where: { id: matterId },
-      include: { client: true },
-    });
+      const matter = await prisma.matter.findUnique({
+        where: { id: matterId },
+        include: { client: true },
+      });
 
-    if (!matter) return res.status(404).json({ error: 'Matter not found' });
+      if (!matter) return res.status(404).json({ error: "Matter not found" });
 
-    const gstAmount = Math.round(amount * 0.18);
-    const totalAmount = amount + gstAmount;
+      const gstAmount = Math.round(amount * 0.18);
+      const totalAmount = amount + gstAmount;
 
-    const order = await razorpay.orders.create({
-      amount: totalAmount * 100, // paise
-      currency,
-      receipt: `LEX-${matterId.slice(0, 8)}`,
-      notes: {
-        matterId,
-        clientEmail: matter.client.email,
-      },
-    });
+      const order = await razorpay.orders.create({
+        amount: totalAmount * 100, // paise
+        currency,
+        receipt: `LEX-${matterId.slice(0, 8)}`,
+        notes: {
+          matterId,
+          clientEmail: matter.client.email,
+        },
+      });
 
-    const payment = await prisma.payment.create({
-      data: {
-        razorpayOrderId: order.id,
+      const payment = await prisma.payment.create({
+        data: {
+          razorpayOrderId: order.id,
+          amount: totalAmount,
+          currency,
+          gstAmount,
+          matterId,
+          userId: req.user!.id,
+          description: `Payment for ${matter.title}`,
+        },
+      });
+
+      res.json({
+        orderId: order.id,
         amount: totalAmount,
         currency,
-        gstAmount,
-        matterId,
-        userId: req.user!.id,
-        description: `Payment for ${matter.title}`,
-      },
-    });
-
-    res.json({
-      orderId: order.id,
-      amount: totalAmount,
-      currency,
-      paymentId: payment.id,
-      keyId: process.env.RAZORPAY_KEY_ID,
-    });
-  } catch (error) {
-    console.error('Payment order error:', error);
-    res.status(500).json({ error: 'Failed to create payment order' });
-  }
-});
+        paymentId: payment.id,
+        keyId: process.env.RAZORPAY_KEY_ID,
+      });
+    } catch (error) {
+      console.error("Payment order error:", error);
+      res.status(500).json({ error: "Failed to create payment order" });
+    }
+  },
+);
 
 // Verify payment webhook
-router.post('/webhook', async (req: Request, res: Response) => {
+router.post("/webhook", async (req: Request, res: Response) => {
   try {
-    const signature = req.headers['x-razorpay-signature'] as string;
+    const signature = req.headers["x-razorpay-signature"] as string;
     const body = JSON.stringify(req.body);
 
     const expectedSignature = crypto
-      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
       .update(body)
-      .digest('hex');
+      .digest("hex");
 
     if (signature !== expectedSignature) {
-      return res.status(400).json({ error: 'Invalid signature' });
+      return res.status(400).json({ error: "Invalid signature" });
     }
 
     const { event, payload } = req.body;
 
-    if (event === 'payment.captured') {
+    if (event === "payment.captured") {
       const { order_id, id: paymentId } = payload.payment.entity;
 
       const payment = await prisma.payment.update({
         where: { razorpayOrderId: order_id },
         data: {
           razorpayPaymentId: paymentId,
-          status: 'PAID',
+          status: "PAID",
         },
         include: {
           user: true,
@@ -107,23 +116,95 @@ router.post('/webhook', async (req: Request, res: Response) => {
 
     res.json({ received: true });
   } catch (error) {
-    console.error('Webhook error:', error);
-    res.status(500).json({ error: 'Webhook processing failed' });
+    console.error("Webhook error:", error);
+    res.status(500).json({ error: "Webhook processing failed" });
   }
 });
 
 // Get payment history
-router.get('/my', requireAuth, async (req: AuthRequest, res: Response) => {
+router.get("/my", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const payments = await prisma.payment.findMany({
       where: { userId: req.user!.id },
-      include: { matter: { select: { title: true, service: true } } },
-      orderBy: { createdAt: 'desc' },
+      include: {
+        matter: { select: { title: true, service: true, id: true } },
+      },
+      orderBy: { createdAt: "desc" },
     });
     res.json(payments);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch payments' });
+    res.status(500).json({ error: "Failed to fetch payments" });
   }
 });
+
+router.get(
+  "/",
+  requireAuth,
+  requireAdmin,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const payments = await prisma.payment.findMany({
+        include: {
+          matter: { select: { title: true, service: true } },
+          user: { select: { firstName: true, lastName: true, email: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+      res.json(payments);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch payments" });
+    }
+  },
+);
+
+router.post(
+  "/send-link",
+  requireAuth,
+  requireLawyer,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { matterId } = req.body;
+
+      const matter = await prisma.matter.findUnique({
+        where: { id: matterId as string },
+        include: { client: true, payments: true },
+      });
+
+      if (!matter) return res.status(404).json({ error: "Matter not found" });
+
+      const pendingPayment = matter.payments.find(
+        (p) => p.status === "PENDING",
+      );
+      if (!pendingPayment)
+        return res.status(400).json({ error: "No pending payment found" });
+
+      // Create Razorpay payment link
+      const paymentLink = await razorpay.paymentLink.create({
+        amount: pendingPayment.amount * 100,
+        currency: pendingPayment.currency,
+        description: matter.title,
+        customer: {
+          name: `${matter.client.firstName} ${matter.client.lastName}`,
+          email: matter.client.email,
+          contact: matter.client.phone || "",
+        },
+        notify: {
+          sms: true,
+          email: true,
+        },
+        reminder_enable: true,
+        notes: {
+          matterId,
+          paymentId: pendingPayment.id,
+        },
+      });
+
+      res.json({ success: true, paymentLink: paymentLink.short_url });
+    } catch (error) {
+      console.error("Send payment link error:", error);
+      res.status(500).json({ error: "Failed to send payment link" });
+    }
+  },
+);
 
 export default router;

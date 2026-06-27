@@ -15,7 +15,7 @@ const createMatterSchema = z.object({
   slaHours: z.number().default(48),
   dueDate: z.string().optional(),
   lawyerId: z.string().optional(),
-  region: z.enum(['INDIA', 'INTERNATIONAL']).default('INDIA'),
+  region: z.enum(["INDIA", "INTERNATIONAL"]).default("INDIA"),
   internalNotes: z.string().optional(),
 });
 
@@ -145,6 +145,18 @@ router.post(
         include: { client: true },
       });
 
+      // Auto-create pending payment record
+      await prisma.payment.create({
+        data: {
+          amount: data.fee,
+          currency: data.region === "INDIA" ? "INR" : "USD",
+          status: "PENDING",
+          description: `Payment for ${data.title}`,
+          matterId: matter.id,
+          userId: data.clientId,
+        },
+      });
+
       await sendMatterUpdate({
         email: matter.client.email,
         firstName: matter.client.firstName,
@@ -155,13 +167,11 @@ router.post(
 
       res.status(201).json(matter);
     } catch (error) {
-      // if (error instanceof z.ZodError) {
-      //   return res.status(400).json({ error: error.issues });
-      // }
       if (error instanceof z.ZodError) {
         const message = error.issues.map((i) => i.message).join(", ");
         return res.status(400).json({ error: message });
       }
+      console.error("Matter create error:", error);
       res.status(500).json({ error: "Failed to create matter" });
     }
   },
